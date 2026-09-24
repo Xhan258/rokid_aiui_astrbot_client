@@ -4,7 +4,7 @@
 
 它需要配合 [AstrBot Rokid Bridge 插件](https://github.com/Xhan258/astrbot_plugin_rokid_bridge) 使用。
 
-当前版本：`1.0.0`。兼容 Bridge Plugin `>=0.3.1,<1.0.0`。
+当前版本：`1.0.1`。需要 Bridge Plugin `>=0.3.5,<1.0.0`。
 
 ## 直接从 GitHub 导入
 
@@ -46,7 +46,7 @@ export const config = {
 - 单击镜腿开始/结束语音输入；镜腿上下滑浏览聊天历史。
 - Bridge SSE 回复显示在 HUD，历史会保存并在重新进入时回到底部。
 - 普通回复完成后由 AIUI 本地 TTS 播报。
-- 管理员设备可由 AstrBot Agent 调用 HUD 文本显示、拍照识图。
+- 管理员设备通过独立命令通道接收 Agent 的 HUD 文本显示、拍照识图请求；该通道不依赖当前聊天回复流。
 
 [`app.json`](app.json) 已声明 `RECORD_AUDIO` 和 `CAMERA`。在真机首次使用时按系统提示授权。
 

@@ -88,7 +88,6 @@ export default {
 
   onUnload() {
     this.aborted = true;
-    this.stopDeviceCommandPolling();
     this.persistChatHistory();
     this.stopThinkingAnimation();
     this.stopPairPolling();
@@ -173,7 +172,6 @@ export default {
         statusLabel: 'READY',
         statusIcon: '●',
       });
-      this.startDeviceCommandPolling();
     } else {
       this.startPairing();
     }
@@ -320,7 +318,6 @@ export default {
             statusLabel: 'READY',
             statusIcon: '●',
           });
-          this.startDeviceCommandPolling();
         } else {
           this.setData({
             isPairing: false,
@@ -365,7 +362,6 @@ export default {
   },
 
   clearCredential() {
-    this.stopDeviceCommandPolling();
     try {
       wx.removeStorageSync(storageKeys.credential);
       wx.removeStorageSync(storageKeys.chatHistory);
@@ -755,9 +751,9 @@ export default {
       stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
       const track = stream.getVideoTracks()[0];
       if (!track) throw new Error('Camera track unavailable');
-      // Agent-driven capture must not open the system preview: AIUI documents
-      // that false is the intended mode for agent image-processing flows.
-      return await new ImageCapture(track).takePhoto({ quality: 'high', mode: mode === 'wide' ? 'wide' : 'telephoto', enableSystemPreview: false });
+      // 保留系统拍摄预览：这是 v9.4 真机验证过的拍照反馈，用户能看到
+      // 拍照动画和预览，同时图片仍会返回给 AstrBot 进行识图。
+      return await new ImageCapture(track).takePhoto({ quality: 'high', mode: mode === 'wide' ? 'wide' : 'telephoto', enableSystemPreview: true });
     } finally {
       if (stream) stream.getTracks().forEach((track) => track.stop());
     }
@@ -780,63 +776,6 @@ export default {
       }
     } else {
       await this.submitCommandResult(commandId, 'error', 'Unsupported command');
-    }
-  },
-
-  // ── Independent device-command channel ───────────────
-
-  startDeviceCommandPolling() {
-    if (this.commandPollingActive || !this.data.deviceId || !this.data.credential || !bridgeUrl()) return;
-    this.commandPollingActive = true;
-    this.pollDeviceCommand();
-  },
-
-  stopDeviceCommandPolling() {
-    this.commandPollingActive = false;
-    if (this.commandPollTimer) {
-      clearTimeout(this.commandPollTimer);
-      this.commandPollTimer = null;
-    }
-  },
-
-  scheduleDeviceCommandPoll(delayMs) {
-    if (!this.commandPollingActive) return;
-    this.commandPollTimer = setTimeout(() => {
-      this.commandPollTimer = null;
-      this.pollDeviceCommand();
-    }, delayMs);
-  },
-
-  async pollDeviceCommand() {
-    if (!this.commandPollingActive) return;
-    const deviceId = this.data.deviceId;
-    const credential = this.data.credential;
-    if (!deviceId || !credential || !bridgeUrl()) {
-      this.stopDeviceCommandPolling();
-      return;
-    }
-    try {
-      const response = await fetch(bridgeUrl() + '/v1/device/command', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ protocol_version: 1, device_id: deviceId, credential, wait_seconds: 25 }),
-        timeout: 30000,
-      });
-      if (response.status === 401) {
-        this.clearCredential();
-        this.startPairing();
-        return;
-      }
-      if (!response.ok) throw new Error('HTTP ' + response.status);
-      const data = await response.json();
-      if (data && data.status === 'command') {
-        await this.handleBridgeCommand(data);
-      }
-      this.scheduleDeviceCommandPoll(0);
-    } catch (e) {
-      // This channel is a background keepalive. Do not replace a visible
-      // conversation error with a transient polling failure.
-      this.scheduleDeviceCommandPoll(1500);
     }
   },
 

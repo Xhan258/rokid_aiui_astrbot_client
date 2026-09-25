@@ -581,6 +581,8 @@ export default {
   wakeFromIdleBlank() {
     if (!this.data.isIdleBlank) return;
     this.setData({ isIdleBlank: false });
+    // 黑屏态会卸载聊天 scroll-view 的可见内容；恢复后等布局稳定再回到底部。
+    this.restoreHistoryScrollToBottom();
     this.resetIdleBlankTimer();
   },
 

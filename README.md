@@ -4,7 +4,7 @@
 
 它需要配合 [AstrBot Rokid Bridge 插件](https://github.com/Xhan258/astrbot_plugin_rokid_bridge) 使用。
 
-当前版本：`1.0.4`。需要 Bridge Plugin `>=0.3.5,<1.0.0`。
+当前版本：`1.0.5`。需要 Bridge Plugin `>=0.3.5,<1.0.0`。
 
 ## 直接从 GitHub 导入
 
@@ -61,6 +61,10 @@ export const config = {
 请先阅读 [`AGENTS.md`](AGENTS.md)。扩展硬件能力时保持 AstrBot Bridge 的 `/v1/*` 协议兼容，并同步更新权限、配置和 README。
 
 ## 更新记录
+
+### 1.0.5
+
+- 从黑屏待机恢复 HUD 后，聊天记录会重新回到最底部。
 
 ### 1.0.4
 

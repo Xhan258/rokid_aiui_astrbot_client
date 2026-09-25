@@ -21,6 +21,7 @@ export const config = {
   ttsEnabled: true,
   ttsVoice: 'female-yujie',
 
-  // 已配对且空闲多久后自动退出当前 AIUI 页面。单位：秒；设为 0 可关闭。
-  autoFinishIdleSeconds: 15,
+  // 已配对且空闲多久后隐藏 HUD，进入黑屏待机。单位：秒；设为 0 可关闭。
+  // 黑屏待机不会退出 AIUI 页面、不会清除配对或聊天记录；镜腿操作一次即可唤醒。
+  idleBlankSeconds: 15,
 };

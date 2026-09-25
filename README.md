@@ -4,7 +4,7 @@
 
 它需要配合 [AstrBot Rokid Bridge 插件](https://github.com/Xhan258/astrbot_plugin_rokid_bridge) 使用。
 
-当前版本：`1.0.2`。需要 Bridge Plugin `>=0.3.5,<1.0.0`。
+当前版本：`1.0.3`。需要 Bridge Plugin `>=0.3.5,<1.0.0`。
 
 ## 直接从 GitHub 导入
 
@@ -24,7 +24,7 @@ export const config = {
   storagePrefix: 'my_rokid_client',
   ttsEnabled: true,
   ttsVoice: 'female-yujie',
-  autoFinishIdleSeconds: 15,
+  idleBlankSeconds: 15,
 };
 ```
 
@@ -33,7 +33,7 @@ export const config = {
 - `deviceDisplayName`：首次配对时、AstrBot 插件设备页中显示的名字。
 - `storagePrefix`：本地设备 ID、凭证和 HUD 历史的存储前缀。一个眼镜连接多套 Bridge 时才需要改。
 - `ttsEnabled`、`ttsVoice`：控制眼镜本地 TTS。
-- `autoFinishIdleSeconds`：已配对、没有录音且回复结束后，空闲多久自动退出当前 AIUI 页面，单位是秒。默认 `15`；改成 `0` 则关闭自动退出。退出不会删除配对信息或聊天历史，下次打开仍可继续使用。
+- `idleBlankSeconds`：已配对、没有录音且回复结束后，空闲多久隐藏 HUD、进入视觉黑屏待机，单位是秒。默认 `15`；改成 `0` 则关闭。它不会退出 AIUI 页面、不会清除配对或聊天历史；黑屏后操作一次镜腿即可恢复 HUD。
 
 不要提交自己的 IP、Token、设备凭证或个人信息。
 
@@ -62,9 +62,13 @@ export const config = {
 
 ## 更新记录
 
+### 1.0.3
+
+- 将空闲后的“自动退出页面”改为黑屏待机：HUD 隐藏但 AIUI 页面、配对和聊天记录都保留，镜腿操作一次即可恢复。
+
 ### 1.0.2
 
-- 新增 `autoFinishIdleSeconds`：空闲后自动结束当前 AIUI 页面，默认 15 秒，可设为 `0` 关闭。
+- 曾新增空闲计时；该行为已在 1.0.3 改为黑屏待机，不再自动退出 AIUI 页面。
 
 ## 许可证
 

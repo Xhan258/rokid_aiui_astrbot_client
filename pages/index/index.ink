@@ -59,6 +59,8 @@ export default {
     isPairing: false,
     pollingActive: false,
     isListening: false,
+    // 黑屏待机只隐藏 HUD；页面与 Bridge 会话继续保留。
+    isIdleBlank: false,
     // 已完成回合仅用于本次打开期间的只读 HUD 历史；当前回合仍使用下方单页字段。
     completedTurns: [],
     turnIdCounter: 0,
@@ -80,11 +82,12 @@ export default {
     // Retry over the first render frames so re-entering the page always starts
     // at the newest conversation instead of its preserved old offset.
     this.restoreHistoryScrollToBottom();
-    this.resetAutoFinishTimer();
+    this.setData({ isIdleBlank: false });
+    this.resetIdleBlankTimer();
   },
 
   onHide() {
-    this.clearAutoFinishTimer();
+    this.clearIdleBlankTimer();
     this.persistChatHistory();
   },
 
@@ -94,7 +97,7 @@ export default {
     this.stopThinkingAnimation();
     this.stopPairPolling();
     this.abortSpeechRecognition();
-    this.clearAutoFinishTimer();
+    this.clearIdleBlankTimer();
     if (this.toolDisplayTimer) {
       clearTimeout(this.toolDisplayTimer);
       this.toolDisplayTimer = null;
@@ -112,6 +115,13 @@ export default {
   },
 
   onKeyUp(event) {
+    // 黑屏待机的第一次镜腿操作只恢复 HUD，不滚动、不开始录音。
+    if (this.data.isIdleBlank) {
+      this.wakeFromIdleBlank();
+      event.preventDefault();
+      return;
+    }
+
     // 镜腿上下滑在 Rokid 侧会被投递为 ArrowUp / ArrowDown；
     // 默认行为只会滚动根页面，必须显式转发到聊天 scroll-view。
     if (event.code === 'ArrowUp' || event.code === 'ArrowDown') {
@@ -175,7 +185,7 @@ export default {
         statusLabel: 'READY',
         statusIcon: '●',
       });
-      this.resetAutoFinishTimer();
+      this.resetIdleBlankTimer();
     } else {
       this.startPairing();
     }
@@ -322,7 +332,7 @@ export default {
             statusLabel: 'READY',
             statusIcon: '●',
           });
-          this.resetAutoFinishTimer();
+          this.resetIdleBlankTimer();
         } else {
           this.setData({
             isPairing: false,
@@ -393,7 +403,7 @@ export default {
       return;
     }
 
-    this.clearAutoFinishTimer();
+    this.clearIdleBlankTimer();
 
     this.setData({
       isListening: true,
@@ -414,7 +424,7 @@ export default {
         statusIcon: '●',
         errorMessage: 'Speech unavailable',
       });
-      this.resetAutoFinishTimer();
+      this.resetIdleBlankTimer();
       return;
     }
 
@@ -469,7 +479,7 @@ export default {
       this.pendingTranscript = '';
       this.stopSpeechRecognition();
       this.setData({ connectionStatus: 'standby', statusLabel: 'READY', statusIcon: '●', errorMessage: msg || '' });
-      this.resetAutoFinishTimer();
+      this.resetIdleBlankTimer();
     };
 
     recognition.onend = () => {
@@ -488,7 +498,7 @@ export default {
         statusIcon: '●',
         errorMessage: 'Speech start failed',
       });
-      this.resetAutoFinishTimer();
+      this.resetIdleBlankTimer();
     }
   },
 
@@ -507,7 +517,7 @@ export default {
     if (shouldSend && text) {
       this.sendChatMessage(text);
     } else {
-      this.resetAutoFinishTimer();
+      this.resetIdleBlankTimer();
     }
   },
 
@@ -528,40 +538,45 @@ export default {
     }
   },
 
-  // ── Idle page finish ─────────────────────────────────
+  // ── Idle black standby ───────────────────────────────
 
-  autoFinishDelayMilliseconds() {
-    const seconds = Number(config.autoFinishIdleSeconds);
+  idleBlankDelayMilliseconds() {
+    // autoFinishIdleSeconds 是 1.0.2 的旧字段：保留兼容，但不再退出页面。
+    const configured = config.idleBlankSeconds ?? config.autoFinishIdleSeconds;
+    const seconds = Number(configured);
     if (!Number.isFinite(seconds)) return 15000;
     return Math.max(0, Math.min(Math.round(seconds * 1000), 3600000));
   },
 
-  clearAutoFinishTimer() {
-    if (this.autoFinishTimer) {
-      clearTimeout(this.autoFinishTimer);
-      this.autoFinishTimer = null;
+  clearIdleBlankTimer() {
+    if (this.idleBlankTimer) {
+      clearTimeout(this.idleBlankTimer);
+      this.idleBlankTimer = null;
     }
   },
 
-  resetAutoFinishTimer() {
-    this.clearAutoFinishTimer();
+  resetIdleBlankTimer() {
+    this.clearIdleBlankTimer();
     if (!this.data.credential || this.data.isListening || this.data.isStreaming || this.data.isPairing) {
       return;
     }
 
-    const delay = this.autoFinishDelayMilliseconds();
+    const delay = this.idleBlankDelayMilliseconds();
     if (!delay) return;
 
-    this.autoFinishTimer = setTimeout(() => {
-      this.autoFinishTimer = null;
+    this.idleBlankTimer = setTimeout(() => {
+      this.idleBlankTimer = null;
       if (!this.data.credential || this.data.isListening || this.data.isStreaming || this.data.isPairing) {
         return;
       }
-      // Page.finish() 由 AIUI Host 结束当前页面；不会删除本地配对或聊天记录。
-      if (typeof this.finish === 'function') {
-        this.finish();
-      }
+      this.setData({ isIdleBlank: true });
     }, delay);
+  },
+
+  wakeFromIdleBlank() {
+    if (!this.data.isIdleBlank) return;
+    this.setData({ isIdleBlank: false });
+    this.resetIdleBlankTimer();
   },
 
   // ── Thinking animation ───────────────────────────────
@@ -663,7 +678,7 @@ export default {
   },
 
   beginTurn(text) {
-    this.clearAutoFinishTimer();
+    this.clearIdleBlankTimer();
     const completedTurns = this.data.completedTurns.slice();
     let turnIdCounter = this.data.turnIdCounter;
 
@@ -809,7 +824,10 @@ export default {
   },
 
   async handleBridgeCommand(data) {
-    this.clearAutoFinishTimer();
+    this.clearIdleBlankTimer();
+    if (this.data.isIdleBlank) {
+      this.setData({ isIdleBlank: false });
+    }
     const commandId = data && data.command_id;
     const command = data && data.command;
     const payload = (data && data.payload) || {};
@@ -918,7 +936,7 @@ export default {
         if (receivedContent) {
           this.flushTtsTail(this.data.replyText);
         }
-        this.resetAutoFinishTimer();
+        this.resetIdleBlankTimer();
         return;
       }
 
@@ -998,7 +1016,7 @@ export default {
               if (receivedContent) {
                 this.flushTtsTail(this.data.replyText);
               }
-              this.resetAutoFinishTimer();
+              this.resetIdleBlankTimer();
               if (reader.releaseLock) {
                 reader.releaseLock();
               }
@@ -1030,7 +1048,7 @@ export default {
       if (receivedContent) {
         this.flushTtsTail(this.data.replyText);
       }
-      this.resetAutoFinishTimer();
+      this.resetIdleBlankTimer();
     } catch (err) {
       this.stopThinkingAnimation();
       if (!receivedContent) {
@@ -1046,7 +1064,7 @@ export default {
       });
       this.scrollToEnd();
       this.persistChatHistory();
-      this.resetAutoFinishTimer();
+      this.resetIdleBlankTimer();
     }
   },
 
@@ -1067,6 +1085,7 @@ export default {
 
 <page>
   <view class="hud-root">
+    <view ink:if="{{!isIdleBlank}}" class="hud-active">
 
     <view class="hud-header">
       <view class="hud-brand-wrap">
@@ -1154,6 +1173,7 @@ export default {
       </view>
     </view>
 
+    </view>
   </view>
 </page>
 
@@ -1168,6 +1188,14 @@ export default {
   padding: 12px 16px;
   box-sizing: border-box;
   overflow: hidden;
+}
+
+.hud-active {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .hud-header {

@@ -4,7 +4,7 @@
 
 它需要配合 [AstrBot Rokid Bridge 插件](https://github.com/Xhan258/astrbot_plugin_rokid_bridge) 使用。
 
-当前版本：`1.0.3`。需要 Bridge Plugin `>=0.3.5,<1.0.0`。
+当前版本：`1.0.4`。需要 Bridge Plugin `>=0.3.5,<1.0.0`。
 
 ## 直接从 GitHub 导入
 
@@ -33,7 +33,7 @@ export const config = {
 - `deviceDisplayName`：首次配对时、AstrBot 插件设备页中显示的名字。
 - `storagePrefix`：本地设备 ID、凭证和 HUD 历史的存储前缀。一个眼镜连接多套 Bridge 时才需要改。
 - `ttsEnabled`、`ttsVoice`：控制眼镜本地 TTS。
-- `idleBlankSeconds`：已配对、没有录音且回复结束后，空闲多久隐藏 HUD、进入视觉黑屏待机，单位是秒。默认 `15`；改成 `0` 则关闭。它不会退出 AIUI 页面、不会清除配对或聊天历史；黑屏后操作一次镜腿即可恢复 HUD。
+- `idleBlankSeconds`：已配对、没有录音且回复结束后，空闲多久隐藏 HUD、进入视觉黑屏待机，单位是秒。默认 `15`；改成 `0` 则关闭。TTS 开启时，倒计时会等最后一段播报结束后才开始。它不会退出 AIUI 页面、不会清除配对或聊天历史；黑屏后操作一次镜腿即可恢复 HUD。
 
 不要提交自己的 IP、Token、设备凭证或个人信息。
 
@@ -61,6 +61,10 @@ export const config = {
 请先阅读 [`AGENTS.md`](AGENTS.md)。扩展硬件能力时保持 AstrBot Bridge 的 `/v1/*` 协议兼容，并同步更新权限、配置和 README。
 
 ## 更新记录
+
+### 1.0.4
+
+- 黑屏待机倒计时改为等待本轮 TTS 播报结束后再开始，避免说话途中隐藏 HUD。
 
 ### 1.0.3
 

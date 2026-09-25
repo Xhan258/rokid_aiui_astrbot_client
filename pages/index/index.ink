@@ -560,6 +560,11 @@ export default {
     if (!this.data.credential || this.data.isListening || this.data.isStreaming || this.data.isPairing) {
       return;
     }
+    // TTS 使用共享播放队列。仍有片段在播报时，绝不能把 HUD 提前隐藏。
+    if (this.ttsPendingCount > 0) {
+      this.idleAfterTts = true;
+      return;
+    }
 
     const delay = this.idleBlankDelayMilliseconds();
     if (!delay) return;
@@ -577,6 +582,21 @@ export default {
     if (!this.data.isIdleBlank) return;
     this.setData({ isIdleBlank: false });
     this.resetIdleBlankTimer();
+  },
+
+  startIdleBlankAfterReply() {
+    this.idleAfterTts = true;
+    if (this.ttsPendingCount > 0) return;
+    this.idleAfterTts = false;
+    this.resetIdleBlankTimer();
+  },
+
+  finishTtsItem() {
+    this.ttsPendingCount = Math.max(0, (Number(this.ttsPendingCount) || 0) - 1);
+    if (this.ttsPendingCount === 0 && this.idleAfterTts) {
+      this.idleAfterTts = false;
+      this.resetIdleBlankTimer();
+    }
   },
 
   // ── Thinking animation ───────────────────────────────
@@ -679,6 +699,7 @@ export default {
 
   beginTurn(text) {
     this.clearIdleBlankTimer();
+    this.idleAfterTts = false;
     const completedTurns = this.data.completedTurns.slice();
     let turnIdCounter = this.data.turnIdCounter;
 
@@ -720,20 +741,32 @@ export default {
   },
 
   enqueueTts(text) {
-    if (!config.ttsEnabled) return;
+    if (!config.ttsEnabled) return false;
     if (!text || typeof speechSynthesis === 'undefined' || typeof SpeechSynthesisUtterance === 'undefined') {
       this.showTtsStatus('TTS UNAVAILABLE');
-      return;
+      return false;
     }
+    this.ttsPendingCount = (Number(this.ttsPendingCount) || 0) + 1;
+    let settled = false;
+    const settle = () => {
+      if (settled) return;
+      settled = true;
+      this.finishTtsItem();
+    };
     try {
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'zh-CN';
       utterance.voice = String(config.ttsVoice || 'female-yujie');
       utterance.volume = 10;
+      utterance.onend = settle;
+      utterance.onerror = settle;
       speechSynthesis.speak(utterance, 'enqueue');
       this.showTtsStatus('TTS QUEUED');
+      return true;
     } catch (e) {
+      settle();
       this.showTtsStatus('TTS ERROR');
+      return false;
     }
   },
 
@@ -936,7 +969,7 @@ export default {
         if (receivedContent) {
           this.flushTtsTail(this.data.replyText);
         }
-        this.resetIdleBlankTimer();
+        this.startIdleBlankAfterReply();
         return;
       }
 
@@ -1016,7 +1049,7 @@ export default {
               if (receivedContent) {
                 this.flushTtsTail(this.data.replyText);
               }
-              this.resetIdleBlankTimer();
+              this.startIdleBlankAfterReply();
               if (reader.releaseLock) {
                 reader.releaseLock();
               }
@@ -1048,7 +1081,7 @@ export default {
       if (receivedContent) {
         this.flushTtsTail(this.data.replyText);
       }
-      this.resetIdleBlankTimer();
+      this.startIdleBlankAfterReply();
     } catch (err) {
       this.stopThinkingAnimation();
       if (!receivedContent) {
@@ -1064,7 +1097,7 @@ export default {
       });
       this.scrollToEnd();
       this.persistChatHistory();
-      this.resetIdleBlankTimer();
+      this.startIdleBlankAfterReply();
     }
   },
 

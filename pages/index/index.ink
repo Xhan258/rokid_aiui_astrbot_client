@@ -80,9 +80,11 @@ export default {
     // Retry over the first render frames so re-entering the page always starts
     // at the newest conversation instead of its preserved old offset.
     this.restoreHistoryScrollToBottom();
+    this.resetAutoFinishTimer();
   },
 
   onHide() {
+    this.clearAutoFinishTimer();
     this.persistChatHistory();
   },
 
@@ -92,6 +94,7 @@ export default {
     this.stopThinkingAnimation();
     this.stopPairPolling();
     this.abortSpeechRecognition();
+    this.clearAutoFinishTimer();
     if (this.toolDisplayTimer) {
       clearTimeout(this.toolDisplayTimer);
       this.toolDisplayTimer = null;
@@ -172,6 +175,7 @@ export default {
         statusLabel: 'READY',
         statusIcon: '●',
       });
+      this.resetAutoFinishTimer();
     } else {
       this.startPairing();
     }
@@ -318,6 +322,7 @@ export default {
             statusLabel: 'READY',
             statusIcon: '●',
           });
+          this.resetAutoFinishTimer();
         } else {
           this.setData({
             isPairing: false,
@@ -388,6 +393,8 @@ export default {
       return;
     }
 
+    this.clearAutoFinishTimer();
+
     this.setData({
       isListening: true,
       errorMessage: '',
@@ -407,6 +414,7 @@ export default {
         statusIcon: '●',
         errorMessage: 'Speech unavailable',
       });
+      this.resetAutoFinishTimer();
       return;
     }
 
@@ -461,6 +469,7 @@ export default {
       this.pendingTranscript = '';
       this.stopSpeechRecognition();
       this.setData({ connectionStatus: 'standby', statusLabel: 'READY', statusIcon: '●', errorMessage: msg || '' });
+      this.resetAutoFinishTimer();
     };
 
     recognition.onend = () => {
@@ -479,6 +488,7 @@ export default {
         statusIcon: '●',
         errorMessage: 'Speech start failed',
       });
+      this.resetAutoFinishTimer();
     }
   },
 
@@ -496,6 +506,8 @@ export default {
     this.pendingTranscript = '';
     if (shouldSend && text) {
       this.sendChatMessage(text);
+    } else {
+      this.resetAutoFinishTimer();
     }
   },
 
@@ -514,6 +526,42 @@ export default {
     if (this.data.isListening) {
       this.setData({ isListening: false });
     }
+  },
+
+  // ── Idle page finish ─────────────────────────────────
+
+  autoFinishDelayMilliseconds() {
+    const seconds = Number(config.autoFinishIdleSeconds);
+    if (!Number.isFinite(seconds)) return 15000;
+    return Math.max(0, Math.min(Math.round(seconds * 1000), 3600000));
+  },
+
+  clearAutoFinishTimer() {
+    if (this.autoFinishTimer) {
+      clearTimeout(this.autoFinishTimer);
+      this.autoFinishTimer = null;
+    }
+  },
+
+  resetAutoFinishTimer() {
+    this.clearAutoFinishTimer();
+    if (!this.data.credential || this.data.isListening || this.data.isStreaming || this.data.isPairing) {
+      return;
+    }
+
+    const delay = this.autoFinishDelayMilliseconds();
+    if (!delay) return;
+
+    this.autoFinishTimer = setTimeout(() => {
+      this.autoFinishTimer = null;
+      if (!this.data.credential || this.data.isListening || this.data.isStreaming || this.data.isPairing) {
+        return;
+      }
+      // Page.finish() 由 AIUI Host 结束当前页面；不会删除本地配对或聊天记录。
+      if (typeof this.finish === 'function') {
+        this.finish();
+      }
+    }, delay);
   },
 
   // ── Thinking animation ───────────────────────────────
@@ -615,6 +663,7 @@ export default {
   },
 
   beginTurn(text) {
+    this.clearAutoFinishTimer();
     const completedTurns = this.data.completedTurns.slice();
     let turnIdCounter = this.data.turnIdCounter;
 
@@ -760,6 +809,7 @@ export default {
   },
 
   async handleBridgeCommand(data) {
+    this.clearAutoFinishTimer();
     const commandId = data && data.command_id;
     const command = data && data.command;
     const payload = (data && data.payload) || {};
@@ -868,6 +918,7 @@ export default {
         if (receivedContent) {
           this.flushTtsTail(this.data.replyText);
         }
+        this.resetAutoFinishTimer();
         return;
       }
 
@@ -947,6 +998,7 @@ export default {
               if (receivedContent) {
                 this.flushTtsTail(this.data.replyText);
               }
+              this.resetAutoFinishTimer();
               if (reader.releaseLock) {
                 reader.releaseLock();
               }
@@ -978,6 +1030,7 @@ export default {
       if (receivedContent) {
         this.flushTtsTail(this.data.replyText);
       }
+      this.resetAutoFinishTimer();
     } catch (err) {
       this.stopThinkingAnimation();
       if (!receivedContent) {
@@ -993,6 +1046,7 @@ export default {
       });
       this.scrollToEnd();
       this.persistChatHistory();
+      this.resetAutoFinishTimer();
     }
   },
 

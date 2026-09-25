@@ -20,4 +20,7 @@ export const config = {
   // AIUI 本地 TTS：关闭后仍能在 HUD 收到完整文字回复。
   ttsEnabled: true,
   ttsVoice: 'female-yujie',
+
+  // 已配对且空闲多久后自动退出当前 AIUI 页面。单位：秒；设为 0 可关闭。
+  autoFinishIdleSeconds: 15,
 };

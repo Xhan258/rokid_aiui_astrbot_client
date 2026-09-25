@@ -4,7 +4,7 @@
 
 它需要配合 [AstrBot Rokid Bridge 插件](https://github.com/Xhan258/astrbot_plugin_rokid_bridge) 使用。
 
-当前版本：`1.0.1`。需要 Bridge Plugin `>=0.3.5,<1.0.0`。
+当前版本：`1.0.2`。需要 Bridge Plugin `>=0.3.5,<1.0.0`。
 
 ## 直接从 GitHub 导入
 
@@ -24,6 +24,7 @@ export const config = {
   storagePrefix: 'my_rokid_client',
   ttsEnabled: true,
   ttsVoice: 'female-yujie',
+  autoFinishIdleSeconds: 15,
 };
 ```
 
@@ -32,6 +33,7 @@ export const config = {
 - `deviceDisplayName`：首次配对时、AstrBot 插件设备页中显示的名字。
 - `storagePrefix`：本地设备 ID、凭证和 HUD 历史的存储前缀。一个眼镜连接多套 Bridge 时才需要改。
 - `ttsEnabled`、`ttsVoice`：控制眼镜本地 TTS。
+- `autoFinishIdleSeconds`：已配对、没有录音且回复结束后，空闲多久自动退出当前 AIUI 页面，单位是秒。默认 `15`；改成 `0` 则关闭自动退出。退出不会删除配对信息或聊天历史，下次打开仍可继续使用。
 
 不要提交自己的 IP、Token、设备凭证或个人信息。
 
@@ -57,6 +59,12 @@ export const config = {
 ## 二次开发
 
 请先阅读 [`AGENTS.md`](AGENTS.md)。扩展硬件能力时保持 AstrBot Bridge 的 `/v1/*` 协议兼容，并同步更新权限、配置和 README。
+
+## 更新记录
+
+### 1.0.2
+
+- 新增 `autoFinishIdleSeconds`：空闲后自动结束当前 AIUI 页面，默认 15 秒，可设为 `0` 关闭。
 
 ## 许可证
 

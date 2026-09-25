@@ -14,6 +14,8 @@
 
 ## 先改配置
 
+第一次使用只需要修改 `serverUrl`，把 `http://YOUR_ASTRBOT_HOST:6191` 换成你的 Bridge 地址；其余配置保持默认即可。
+
 编辑根目录 [`config.js`](config.js)：
 
 ```js
